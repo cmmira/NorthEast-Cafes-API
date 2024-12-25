@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, Boolean
+from sqlalchemy import Integer, String, Boolean, CheckConstraint
 
 app = Flask(__name__)
 
@@ -21,7 +21,12 @@ class Cafe(db.Model):
     location: Mapped[str] = mapped_column(String(250), nullable=False)
     has_toilet: Mapped[bool] = mapped_column(Boolean, nullable=False)
     wifi_rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    rating_img: Mapped[str] = mapped_column(String(11), nullable=False)
     coffee_price: Mapped[str] = mapped_column(String(250), nullable=True)
+    __table_args__ = (
+        CheckConstraint('wifi_rating <= 10', name='max_value_constraint'),
+        CheckConstraint('wifi_rating >= 0', name='min_value_constraint'),
+    )
 
     def to_dict(self):
         return {column.name: getattr(self, column.name) for column in self.__table__.columns}
@@ -53,13 +58,21 @@ def get_cafe_at_location():
 
 @app.route("/add", methods=["POST"])
 def post_new_cafe():
+    rating = int(request.form.get("wifi_rating"))
+    wifi = ""
+    if rating > 0:
+        for i in range(rating):
+            wifi += "🛜"
+    else:
+        wifi = "✘"
     new_cafe = Cafe(
         name=request.form.get("name"),
         map_url=request.form.get("map_url"),
         img_url=request.form.get("img_url"),
-        location=request.form.get("loc"),
-        has_toilet=bool(request.form.get("toilet")),
-        wifi_rating=int(request.form.get("wifi")),
+        location=request.form.get("location"),
+        has_toilet=bool(request.form.get("has_toilet")),
+        wifi_rating=rating,
+        rating_img=wifi,
         coffee_price=request.form.get("coffee_price"),
     )
     db.session.add(new_cafe)
